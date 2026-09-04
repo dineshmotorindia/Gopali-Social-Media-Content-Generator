@@ -578,7 +578,7 @@
               <div class="icon">YT</div>
               <div>
                 <h3>YouTube</h3>
-                <small>SEO-focused video title + description</small>
+                <small>SEO-focused title + description from the full article</small>
               </div>
             </div>
             <button class="copy-btn" onclick="copyText('youtube')">Copy</button>
@@ -761,31 +761,107 @@ ${shortTags}`;
       el.classList.remove('placeholder');
     }
 
+    function scoreTitleCandidate(title, text, segment, keywords){
+      const lower = title.toLowerCase();
+      const source = text.toLowerCase();
+      let score = 0;
+
+      // Reward strong searchable terms from the complete article.
+      keywords.slice(0,10).forEach((k, i) => {
+        if(lower.includes(k.toLowerCase())) score += Math.max(12 - i, 3);
+      });
+
+      // Reward concrete details: names, numbers, products, companies and outcomes.
+      if(/\b\d+(?:\.\d+)?\s*(?:%|percent|million|billion|crore|lakh|units?|years?)\b/i.test(title)) score += 10;
+      if(/\b(?:launch|launched|launches|unveil|unveiled|new|expands?|expansion|investment|invests?|growth|sales|revenue|orders?|partnership|acquisition|technology|electric|ev|export|manufacturing|capacity|production|strategy|demand|market|industry|policy|initiative|development|innovation)\b/i.test(title)) score += 8;
+      if(/[A-Z][A-Za-z&.-]{2,}(?:\s+[A-Z][A-Za-z&.-]{2,})+/.test(title)) score += 5;
+      if(title.length >= 55 && title.length <= 95) score += 8;
+      if(title.length < 42) score -= 4;
+      if(title.length > 100) score -= 12;
+      if(/[!?]/.test(title)) score += 2;
+      if(title.split(/\s+/).length >= 7) score += 3;
+
+      // Penalize generic/editorial filler and titles that merely echo the opening sentence.
+      if(/^(today|in this video|here's|this video|latest update|important development)\b/i.test(title)) score -= 10;
+      if(title === getTitle(text)) score -= 15;
+      if(title.toLowerCase() === source.slice(0, title.length).toLowerCase()) score -= 12;
+
+      // Segment relevance.
+      if(segment === 'motorindia' && /automotive|commercial vehicle|truck|bus|mobility|fleet|aftermarket|logistics|auto/i.test(title)) score += 4;
+      if(segment === 'textile' && /textile|textiles|spinning|weaving|yarn|fibre|fiber|machinery|apparel|garment/i.test(title)) score += 4;
+
+      return score;
+    }
+
+    function buildYouTubeTitle(text, segment, keywords){
+      const sentences = getSentences(text);
+      const key = keywords.slice(0,8);
+      const primary = key[0] || (segment === 'motorindia' ? 'Automotive Industry' : 'Textile Industry');
+      const secondary = key.find(k => k.toLowerCase() !== primary.toLowerCase()) || '';
+
+      // Pull the most information-rich sentences from the entire article, not just sentence #1.
+      const rankedSentences = sentences.map((sentence, index) => {
+        let score = 0;
+        const lower = sentence.toLowerCase();
+        key.forEach((k, i) => { if(lower.includes(k.toLowerCase())) score += Math.max(8 - i, 2); });
+        if(/\b\d+(?:\.\d+)?\s*(?:%|percent|million|billion|crore|lakh|units?|years?)\b/i.test(sentence)) score += 7;
+        if(/\b(?:launch|launched|unveil|unveiled|investment|invests?|growth|sales|revenue|orders?|partnership|acquisition|technology|electric|export|manufacturing|capacity|production|strategy|demand|market|policy|initiative|innovation)\b/i.test(sentence)) score += 6;
+        score += Math.min(sentence.length / 120, 3);
+        score -= index * 0.15;
+        return {sentence, score};
+      }).sort((a,b) => b.score - a.score);
+
+      const evidence = rankedSentences.slice(0,4).map(x => x.sentence).join(' ');
+      const snippets = [];
+      const clean = x => x.replace(/^[-–—•\s]+/, '').replace(/[.!?]+$/,'').trim();
+
+      // Candidate titles deliberately use the article's strongest story angle + searchable language.
+      if(primary) snippets.push(`${primary}: ${clean(evidence)}`);
+      if(secondary) snippets.push(`${primary} ${secondary}: What the Latest Development Means for the Industry`);
+      snippets.push(`${primary}: Key Industry Development, Market Impact and What Comes Next`);
+      snippets.push(`What ${primary} Means for the ${segment === 'motorindia' ? 'Automotive' : 'Textile'} Industry`);
+      if(secondary) snippets.push(`${primary} and ${secondary}: The Industry Shift to Watch`);
+
+      // Turn sentence-based candidates into concise titles.
+      const candidates = snippets.map(title => {
+        title = title.replace(/\s+/g,' ').trim();
+        if(title.length > 96) title = title.slice(0,93).replace(/\s+\S*$/,'') + '...';
+        return title;
+      });
+
+      return candidates.sort((a,b) => scoreTitleCandidate(b, text, segment, keywords) - scoreTitleCandidate(a, text, segment, keywords))[0];
+    }
+
     function createYouTube(text, segment, tags){
       const s = getSentences(text);
-      const title = getTitle(text);
+      const keywords = extractKeywords(text, segment);
+      const ytTitle = buildYouTubeTitle(text, segment, keywords);
       const sector = segment === 'motorindia'
-        ? 'automotive and commercial vehicle industry'
-        : 'textile and textile machinery industry';
+        ? 'automotive, commercial vehicle and mobility industry'
+        : 'textile, textile machinery and manufacturing industry';
 
-      const ytTitle = title.length > 95 ? title.slice(0,92).replace(/\s+\S*$/,'') + '...' : title;
+      const ranked = s.map((sentence, index) => {
+        let score = 0;
+        keywords.slice(0,10).forEach((k,i) => { if(sentence.toLowerCase().includes(k.toLowerCase())) score += Math.max(7-i,2); });
+        if(/\b\d+(?:\.\d+)?\s*(?:%|percent|million|billion|crore|lakh|units?|years?)\b/i.test(sentence)) score += 5;
+        if(/\b(?:launch|investment|growth|sales|revenue|orders?|partnership|technology|electric|export|manufacturing|capacity|production|strategy|demand|market|policy|innovation)\b/i.test(sentence)) score += 5;
+        score -= index * .1;
+        return {sentence, score};
+      }).sort((a,b)=>b.score-a.score).slice(0,7).map(x=>x.sentence.trim());
 
       const description =
 `${ytTitle}
 
-In this video, we cover the latest development and what it means for the ${sector}.
+This video examines ${ytTitle.replace(/^[^:]+:\s*/,'').replace(/\.\.\.$/,'')} and what it means for the ${sector}.
 
-${s.slice(0,6).map(x => x.trim()).join(' ')}
+We analyse the full story, including the key companies, products, technologies, market developments, numbers and industry implications highlighted in the source material.
 
 Key topics covered:
-• Industry development and market context
-• Key companies, products or technologies mentioned
-• Potential impact on the sector
-• Important trends and takeaways
+${ranked.slice(0,5).map(x => `• ${x.replace(/[.!?]+$/,'')}`).join('\n')}
 
-Follow for more industry news, interviews, technology updates and market insights.
+Follow Gopali & Co for industry news, interviews, technology updates, business developments and market insights.
 
-Keywords: ${extractKeywords(text, segment).join(', ')}
+Keywords: ${keywords.join(', ')}
 
 ${tags.join(' ')}`;
 
@@ -813,7 +889,7 @@ ${tags.join(' ')}`;
       setOutput('keywords', keywords.join(', '));
       setOutput('hashtags', tags.join(' '));
 
-      status.textContent = 'Draft generated. Live web/SEO research will be performed automatically once an AI/search connection is configured.';
+      status.textContent = 'Generated from the full article: YouTube title is selected from multiple SEO/story-angle candidates, not simply the first line.';
     }
 
     async function copyText(id){
