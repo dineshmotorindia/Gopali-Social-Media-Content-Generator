@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Professional social content generator for MotorIndia and Textile Magazine." />
-  <title>Social Content Studio</title>
+  <title>Gopali &amp; Co Social Media Content Generator</title>
   <style>
     :root{
       --bg:#07111f;
@@ -317,6 +317,21 @@
       font-weight:700;
     }
 
+
+    .seo-note{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      padding:12px 13px;
+      margin:-3px 0 16px;
+      border-radius:13px;
+      background:rgba(57,217,138,.055);
+      border:1px solid rgba(57,217,138,.15);
+    }
+    .seo-dot{color:var(--success);font-size:10px;margin-top:3px}
+    .seo-note strong{display:block;font-size:12px;color:#c9f7dc}
+    .seo-note small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.45}
+
     .status{
       min-height:20px;
       margin-top:12px;
@@ -448,7 +463,7 @@
       <div class="brand">
         <div class="brand-mark">SC</div>
         <div>
-          <h1>Social Content Studio</h1>
+          <h1>Gopali &amp; Co Social Media Content Generator</h1>
           <p>Professional publishing assistant</p>
         </div>
       </div>
@@ -458,7 +473,7 @@
     <section class="hero">
       <div class="panel hero-copy">
         <div class="eyebrow">Editorial automation</div>
-        <h2>One article. Three platforms. One click.</h2>
+        <h2>One article. Four platforms. One click.</h2>
         <p>
           Create professional social content for Facebook, X and LinkedIn with publication-specific
           editorial tone, keywords and hashtags.
@@ -474,7 +489,7 @@
           </div>
         </div>
         <div class="mini-stats">
-          <div class="mini-stat"><strong>3</strong><span>Platforms</span></div>
+          <div class="mini-stat"><strong>4</strong><span>Platforms</span></div>
           <div class="mini-stat"><strong>2</strong><span>Segments</span></div>
           <div class="mini-stat"><strong>1</strong><span>Click</span></div>
         </div>
@@ -493,21 +508,18 @@
           </select>
         </div>
 
-        <div class="mode-switch">
-          <button class="mode-btn active" data-mode="article" onclick="setMode('article')">Article Text</button>
-          <button class="mode-btn" data-mode="url" onclick="setMode('url')">Article URL</button>
-        </div>
-
-        <div class="field" id="articleField">
+        <div class="field">
           <label for="article">Paste article</label>
           <textarea id="article" placeholder="Paste the full article here..."></textarea>
-          <div class="helper">Best results come from the full article text.</div>
+          <div class="helper">SEO-first workflow: the AI version will research current search demand, related queries, trending topics and platform-specific discoverability before generating the final content.</div>
         </div>
 
-        <div class="field" id="urlField" style="display:none">
-          <label for="url">Article URL</label>
-          <input id="url" type="url" placeholder="https://example.com/article" />
-          <div class="helper">URL fetching needs a backend/API in a future version.</div>
+        <div class="seo-note">
+          <span class="seo-dot">●</span>
+          <div>
+            <strong>Live SEO Research</strong>
+            <small>Planned AI connection will research the web on every generation — no stale hashtag lists.</small>
+          </div>
         </div>
 
         <button class="primary-btn" onclick="generateContent()">✦ Generate Social Content</button>
@@ -559,6 +571,21 @@
           <div id="x" class="output placeholder">Your X post will appear here.</div>
         </section>
 
+
+        <section class="panel output-card">
+          <div class="output-head">
+            <div class="output-head-left">
+              <div class="icon">YT</div>
+              <div>
+                <h3>YouTube</h3>
+                <small>SEO-focused video title + description</small>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyText('youtube')">Copy</button>
+          </div>
+          <div id="youtube" class="output placeholder">Your YouTube title and description will appear here.</div>
+        </section>
+
         <div class="split">
           <section class="panel output-card">
             <div class="output-head">
@@ -595,8 +622,6 @@
   </main>
 
   <script>
-    let currentMode = 'article';
-
     const segmentConfig = {
       motorindia: {
         name: 'MotorIndia',
@@ -633,16 +658,6 @@
       const cfg = segmentConfig[key];
       document.getElementById('segmentPreview').textContent = cfg.name;
       document.getElementById('segmentDesc').textContent = cfg.desc;
-    }
-
-    function setMode(mode){
-      currentMode = mode;
-      document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.mode === mode);
-      });
-      document.getElementById('articleField').style.display = mode === 'article' ? 'block' : 'none';
-      document.getElementById('urlField').style.display = mode === 'url' ? 'block' : 'none';
-      document.getElementById('status').textContent = '';
     }
 
     function normalize(text){
@@ -746,20 +761,40 @@ ${shortTags}`;
       el.classList.remove('placeholder');
     }
 
+    function createYouTube(text, segment, tags){
+      const s = getSentences(text);
+      const title = getTitle(text);
+      const sector = segment === 'motorindia'
+        ? 'automotive and commercial vehicle industry'
+        : 'textile and textile machinery industry';
+
+      const ytTitle = title.length > 95 ? title.slice(0,92).replace(/\s+\S*$/,'') + '...' : title;
+
+      const description =
+`${ytTitle}
+
+In this video, we cover the latest development and what it means for the ${sector}.
+
+${s.slice(0,6).map(x => x.trim()).join(' ')}
+
+Key topics covered:
+• Industry development and market context
+• Key companies, products or technologies mentioned
+• Potential impact on the sector
+• Important trends and takeaways
+
+Follow for more industry news, interviews, technology updates and market insights.
+
+Keywords: ${extractKeywords(text, segment).join(', ')}
+
+${tags.join(' ')}`;
+
+      return `TITLE\n${ytTitle}\n\nDESCRIPTION\n${description}`;
+    }
+
     function generateContent(){
       const status = document.getElementById('status');
       const segment = document.getElementById('segment').value;
-
-      if(currentMode === 'url'){
-        const url = document.getElementById('url').value.trim();
-        if(!url){
-          status.textContent = 'Please paste an article URL.';
-          return;
-        }
-        status.textContent = 'URL fetching is not enabled in this static version. Paste the article text for now.';
-        return;
-      }
-
       const raw = document.getElementById('article').value.trim();
 
       if(!raw){
@@ -774,10 +809,11 @@ ${shortTags}`;
       setOutput('linkedin', createLinkedIn(text, segment, tags));
       setOutput('facebook', createFacebook(text, segment, tags));
       setOutput('x', createX(text, segment, tags));
+      setOutput('youtube', createYouTube(text, segment, tags));
       setOutput('keywords', keywords.join(', '));
       setOutput('hashtags', tags.join(' '));
 
-      status.textContent = 'Content generated successfully.';
+      status.textContent = 'Draft generated. Live web/SEO research will be performed automatically once an AI/search connection is configured.';
     }
 
     async function copyText(id){
@@ -794,12 +830,12 @@ ${shortTags}`;
 
     function clearAll(){
       document.getElementById('article').value = '';
-      document.getElementById('url').value = '';
 
       const placeholders = {
         linkedin:'Your LinkedIn post will appear here.',
         facebook:'Your Facebook post will appear here.',
         x:'Your X post will appear here.',
+        youtube:'Your YouTube title and description will appear here.',
         keywords:'Keywords will appear here.',
         hashtags:'Hashtags will appear here.'
       };
