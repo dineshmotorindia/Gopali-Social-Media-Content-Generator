@@ -317,7 +317,6 @@
       font-weight:700;
     }
 
-
     .seo-note{
       display:flex;
       gap:10px;
@@ -473,9 +472,9 @@
     <section class="hero">
       <div class="panel hero-copy">
         <div class="eyebrow">Editorial automation</div>
-        <h2>One article. Four platforms. One click.</h2>
+        <h2>One article. Four professional outputs. One click.</h2>
         <p>
-          Create professional social content for Facebook, X and LinkedIn with publication-specific
+          Create professional content for LinkedIn, Facebook, X and YouTube with publication-specific
           editorial tone, keywords and hashtags.
         </p>
       </div>
@@ -489,7 +488,7 @@
           </div>
         </div>
         <div class="mini-stats">
-          <div class="mini-stat"><strong>4</strong><span>Platforms</span></div>
+          <div class="mini-stat"><strong>4</strong><span>Outputs</span></div>
           <div class="mini-stat"><strong>2</strong><span>Segments</span></div>
           <div class="mini-stat"><strong>1</strong><span>Click</span></div>
         </div>
@@ -529,13 +528,14 @@
       </aside>
 
       <div class="outputs">
-        <section class="panel output-card">
+
+        <section class="panel output-card full-output">
           <div class="output-head">
             <div class="output-head-left">
               <div class="icon">in</div>
               <div>
                 <h3>LinkedIn</h3>
-                <small>Professional industry post</small>
+                <small>Professional editorial post</small>
               </div>
             </div>
             <button class="copy-btn" onclick="copyText('linkedin')">Copy</button>
@@ -543,13 +543,13 @@
           <div id="linkedin" class="output placeholder">Your LinkedIn post will appear here.</div>
         </section>
 
-        <section class="panel output-card">
+        <section class="panel output-card full-output">
           <div class="output-head">
             <div class="output-head-left">
               <div class="icon">f</div>
               <div>
                 <h3>Facebook</h3>
-                <small>Professional, accessible social post</small>
+                <small>Professional social post</small>
               </div>
             </div>
             <button class="copy-btn" onclick="copyText('facebook')">Copy</button>
@@ -557,13 +557,13 @@
           <div id="facebook" class="output placeholder">Your Facebook post will appear here.</div>
         </section>
 
-        <section class="panel output-card">
+        <section class="panel output-card full-output">
           <div class="output-head">
             <div class="output-head-left">
               <div class="icon">X</div>
               <div>
                 <h3>X</h3>
-                <small>Concise platform-ready post</small>
+                <small>Concise professional post</small>
               </div>
             </div>
             <button class="copy-btn" onclick="copyText('x')">Copy</button>
@@ -571,19 +571,18 @@
           <div id="x" class="output placeholder">Your X post will appear here.</div>
         </section>
 
-
-        <section class="panel output-card">
+        <section class="panel output-card full-output">
           <div class="output-head">
             <div class="output-head-left">
               <div class="icon">YT</div>
               <div>
-                <h3>YouTube</h3>
-                <small>SEO-focused title + description from the full article</small>
+                <h3>YouTube Description</h3>
+                <small>SEO-aware professional video description — title intentionally excluded</small>
               </div>
             </div>
-            <button class="copy-btn" onclick="copyText('youtube')">Copy</button>
+            <button class="copy-btn" onclick="copyText('youtubeDescription')">Copy</button>
           </div>
-          <div id="youtube" class="output placeholder">Your YouTube title and description will appear here.</div>
+          <div id="youtubeDescription" class="output placeholder">Your YouTube description will appear here.</div>
         </section>
 
         <div class="split">
@@ -669,8 +668,59 @@
     }
 
     function getTitle(text){
-      const first = getSentences(text)[0] || text;
-      return first.replace(/^["“]|["”]$/g,'').trim().slice(0,150);
+      // Build a real editorial headline from the WHOLE article.
+      // Never use the transcript's first sentence as the headline.
+      const sentences = getSentences(text);
+      const keywords = extractKeywords(text, document.getElementById('segment').value);
+      const segment = document.getElementById('segment').value;
+
+      const scored = sentences.map((sentence, index) => {
+        const lower = sentence.toLowerCase();
+        let score = 0;
+        keywords.slice(0,12).forEach((k,i) => { if(lower.includes(k.toLowerCase())) score += Math.max(10-i,2); });
+        if(/\b\d+(?:\.\d+)?\s*(?:%|percent|million|billion|crore|lakh|units?|vehicles?|machines?|tonnes?|years?)\b/i.test(sentence)) score += 10;
+        if(/\b(?:launch|launched|launches|unveil|unveiled|announce|announced|investment|invests?|expands?|expansion|growth|sales|revenue|orders?|partnership|acquisition|technology|electric|ev|export|manufacturing|capacity|production|strategy|demand|market|policy|initiative|innovation|plans?|targets?|outlook|forecast)\b/i.test(sentence)) score += 9;
+        if(/\b(?:will|plans to|aims to|targets|expects|seeks|focuses on|is set to)\b/i.test(sentence)) score += 4;
+        score += Math.min(sentence.length / 80, 4);
+        score -= index * 0.25;
+        if(index === 0) score -= 8; // opening transcript line is deliberately deprioritized
+        return {sentence: sentence.trim(), score};
+      }).sort((a,b)=>b.score-a.score);
+
+      const best = scored[0]?.sentence || text;
+      const clean = best.replace(/^[\s"“”'‘’•-]+|[.!?]+$/g,'').trim();
+      const sector = segment === 'motorindia' ? 'Automotive' : 'Textile';
+
+      // Extract useful headline ingredients rather than copying the transcript sentence.
+      const number = (clean.match(/\b\d+(?:\.\d+)?\s*(?:%|percent|million|billion|crore|lakh|units?|vehicles?|machines?|tonnes?|years?)\b/i)||[])[0] || '';
+      const actionMatch = clean.match(/\b(launch(?:es|ed)?|unveil(?:s|ed)?|announc(?:es|ed)|invest(?:s|ed|ment)?|expand(?:s|ed|ing)?|expansion|grow(?:s|th|ing)?|target(?:s|ed)?|plan(?:s|ned)?|partner(?:s|ed|ship)?|acquir(?:es|ed|ing)|develop(?:s|ed|ing)|manufactur(?:es|ed|ing)|export(?:s|ed|ing)|introduc(?:es|ed|ing)|focus(?:es|ed|ing))\b/i);
+
+      let headline = clean;
+      if(actionMatch){
+        const action = actionMatch[0];
+        const pos = clean.toLowerCase().indexOf(action.toLowerCase());
+        const lead = clean.slice(0, pos).trim().replace(/[,;:-]+$/,'');
+        const tail = clean.slice(pos + action.length).trim().replace(/^[,;:-]+/,'');
+        if(lead && tail){
+          headline = `${lead} ${action} ${tail}`;
+        }
+      }
+
+      // Keep headlines compact and editorial; do not expose raw transcript phrasing.
+      headline = headline.replace(/\s+/g,' ').trim();
+      if(headline.length > 88){
+        headline = headline.slice(0,88).replace(/\s+\S*$/,'').replace(/[,:;\-]+$/,'').trim();
+      }
+      if(number && !headline.includes(number) && headline.length < 75) headline += ` | ${number}`;
+
+      // If the source is conversational rather than news-like, use the strongest keyword angle.
+      if(headline.length < 35 || /^(so|well|okay|yes|no|actually|basically|we|i|you)\b/i.test(headline)){
+        const primary = keywords[0] || sector;
+        const secondary = keywords.find(k => k.toLowerCase() !== primary.toLowerCase()) || '';
+        headline = secondary ? `${primary}: ${secondary} and the Industry Outlook` : `${primary}: Key Industry Developments and Outlook`;
+      }
+
+      return headline;
     }
 
     function extractKeywords(text, segment){
@@ -705,191 +755,103 @@
         .slice(0,12);
     }
 
+    function editorialHeadline(text, segment){
+      const sentences = getSentences(text).map(s => s.trim()).filter(s => s.length > 35);
+      const keywords = extractKeywords(text, segment).slice(0,10);
+      const actionWords = /\b(launch|launched|unveil|unveiled|announce|announced|investment|invest|expan|growth|sales|revenue|orders|partnership|acquisition|technology|electric|export|manufactur|capacity|production|strategy|demand|market|policy|initiative|innovation|plan|target|outlook|forecast|develop|introduc)\w*\b/i;
+      const scored = sentences.map((s,i)=>{
+        const l=s.toLowerCase(); let score=0;
+        keywords.forEach((k,idx)=>{ if(l.includes(k.toLowerCase())) score += 7-idx*0.4; });
+        if(actionWords.test(s)) score += 8;
+        if(/\d/.test(s)) score += 5;
+        if(/\b(?:will|plans to|aims to|targets|expects|seeks|focuses on)\b/i.test(s)) score += 3;
+        if(i===0) score -= 20;
+        if(/^(?:hi|hello|welcome|good morning|good afternoon|thank you|so today|today we|we are|i am|my name)/i.test(s)) score -= 20;
+        return {s,score};
+      }).sort((a,b)=>b.score-a.score);
+      const best=scored[0]?.s || sentences[1] || sentences[0] || text;
+      const clean=best.replace(/^[\s"“”'‘’•-]+|[.!?]+$/g,'').replace(/\s+/g,' ').trim();
+      const sector=segment==='motorindia'?'automotive and mobility':'textile and manufacturing';
+      const company=(text.match(/\b[A-Z][A-Za-z&.-]{2,}(?:\s+[A-Z][A-Za-z&.-]{2,}){0,2}\b/g)||[])
+        .filter(x=>!/^The\b/.test(x)).find(x=>x.length<45) || '';
+      let headline=clean;
+      if(/^(?:we|i|you|today|so|well|okay|actually|basically)\b/i.test(headline) || headline.length<45){
+        const primary=keywords[0] || sector;
+        headline=company ? `${company}: ${primary} and Key ${sector} Industry Developments` : `${primary}: Key ${sector} Industry Developments and Outlook`;
+      }
+      // Turn conversational sentence into a clean editorial-style headline.
+      headline=headline.replace(/\b(we|i|you|our|my|this video|in this video)\b/gi,'').replace(/\s+/g,' ').trim();
+      if(headline.length>105) headline=headline.slice(0,102).replace(/\s+\S*$/,'')+'…';
+      return headline;
+    }
+
     function createLinkedIn(text, segment, tags){
-      const s = getSentences(text);
-      const title = getTitle(text);
-      const summary = s.slice(0,4).map(x => x.trim()).join(' ');
-      const context = s.slice(4,7).map(x => x.trim()).join(' ');
-      const sector = segment === 'motorindia' ? 'automotive and mobility sector' : 'textile and manufacturing sector';
-
-      return `${title}
-
-${summary}
-
-This development is noteworthy for the ${sector}${context ? `, particularly as ${context.charAt(0).toLowerCase() + context.slice(1)}` : '.'}
-
-For industry stakeholders, the key takeaway is the broader impact this could have on market direction, technology adoption and business strategy.
-
-${tags.join(' ')}`;
+      const s=getSentences(text).map(x=>x.trim()).filter(x=>x.length>35);
+      const title=editorialHeadline(text,segment);
+      const sector=segment==='motorindia'?'automotive, commercial vehicle and mobility sector':'textile, textile machinery and manufacturing sector';
+      const body=s.slice(0,7).join(' ');
+      const insight=s.slice(7,11).join(' ');
+      return `${title}\n\n${body}\n\n${insight ? insight+'\n\n' : ''}This development is relevant to professionals across the ${sector}, with potential implications for business strategy, technology adoption, manufacturing, market demand and the wider industry landscape.\n\nFor the latest industry news, company developments and sector insights, follow Gopali & Co.\n\n${tags.slice(0,6).join(' ')}`;
     }
 
     function createFacebook(text, segment, tags){
-      const s = getSentences(text);
-      const title = getTitle(text);
-      const summary = s.slice(0,3).map(x => x.trim()).join(' ');
-      const sector = segment === 'motorindia' ? 'automotive industry' : 'textile industry';
-
-      return `${title}
-
-${summary}
-
-A development worth watching for the ${sector}, with implications for businesses, technology and market growth.
-
-Read the full story for more details and industry perspective.
-
-${tags.join(' ')}`;
+      const s=getSentences(text).map(x=>x.trim()).filter(x=>x.length>35);
+      const title=editorialHeadline(text,segment);
+      const sector=segment==='motorindia'?'automotive and mobility industry':'textile and manufacturing industry';
+      const body=s.slice(0,5).join(' ');
+      return `${title}\n\n${body}\n\nThe development highlights an important movement within the ${sector} and offers useful context for companies, professionals and industry stakeholders tracking the market.\n\nKey takeaway: the story brings together the business, technology and market factors shaping the sector.\n\nRead the full story for the complete industry perspective and follow Gopali & Co for more professional updates.\n\n${tags.slice(0,8).join(' ')}`;
     }
 
     function createX(text, segment, tags){
-      const s = getSentences(text);
-      let base = `${getTitle(text)} ${s.slice(1,2).join(' ').trim()}`.trim();
-      const shortTags = tags.slice(0,4).join(' ');
-      const maxBase = 280 - shortTags.length - 3;
-
-      if(base.length > maxBase){
-        base = base.slice(0, Math.max(40,maxBase - 1)).replace(/\s+\S*$/,'') + '…';
+      const s=getSentences(text).map(x=>x.trim()).filter(x=>x.length>35);
+      const title=editorialHeadline(text,segment);
+      const supporting=s.find(x=>x!==title) || '';
+      const sector=segment==='motorindia'?'automotive':'textile';
+      const shortTags=tags.slice(0,2).join(' ');
+      let post=`${title}\n\n${supporting}\n\nA key development for the ${sector} industry. Read the full story for the details.`;
+      if(shortTags) post += `\n\n${shortTags}`;
+      if(post.length>280){
+        const allowance=280-shortTags.length-4;
+        const compact=`${title} — ${supporting}`.replace(/\s+/g,' ').trim();
+        post=compact.slice(0,Math.max(40,allowance)).replace(/\s+\S*$/,'')+'…';
+        if(shortTags) post += `\n\n${shortTags}`;
       }
+      return post;
+    }
 
-      return `${base}
-
-${shortTags}`;
+    function createYouTubeDescription(text, segment, keywords, tags){
+      const sentences=getSentences(text).map(x=>x.trim()).filter(x=>x.length>40);
+      const meaningful=sentences.slice(1,9);
+      const sector=segment==='motorindia'
+        ? 'automotive, commercial vehicle, mobility and transport industry'
+        : 'textile, textile machinery, fibre, yarn, apparel and manufacturing industry';
+      const focus=meaningful.length ? meaningful.join(' ') : text;
+      const keywordLine=keywords.slice(0,10).join(', ');
+      return `In this video, we explore the latest developments shaping the ${sector}.\n\n${focus}\n\nThe discussion covers key business developments, technology, market trends, industry priorities and the factors influencing the sector. This video provides useful context for industry professionals, businesses, manufacturers, decision-makers and stakeholders tracking the market.\n\nKey topics: ${keywordLine}\n\nFollow Gopali & Co for industry news, interviews, company updates and professional insights.\n\n${tags.slice(0,6).join(' ')}`;
     }
 
     function setOutput(id, text){
-      const el = document.getElementById(id);
-      el.textContent = text;
+      const el=document.getElementById(id);
+      if(!el) return;
+      el.textContent=text;
       el.classList.remove('placeholder');
     }
 
-    function scoreTitleCandidate(title, text, segment, keywords){
-      const lower = title.toLowerCase();
-      const source = text.toLowerCase();
-      let score = 0;
-
-      // Reward strong searchable terms from the complete article.
-      keywords.slice(0,10).forEach((k, i) => {
-        if(lower.includes(k.toLowerCase())) score += Math.max(12 - i, 3);
-      });
-
-      // Reward concrete details: names, numbers, products, companies and outcomes.
-      if(/\b\d+(?:\.\d+)?\s*(?:%|percent|million|billion|crore|lakh|units?|years?)\b/i.test(title)) score += 10;
-      if(/\b(?:launch|launched|launches|unveil|unveiled|new|expands?|expansion|investment|invests?|growth|sales|revenue|orders?|partnership|acquisition|technology|electric|ev|export|manufacturing|capacity|production|strategy|demand|market|industry|policy|initiative|development|innovation)\b/i.test(title)) score += 8;
-      if(/[A-Z][A-Za-z&.-]{2,}(?:\s+[A-Z][A-Za-z&.-]{2,})+/.test(title)) score += 5;
-      if(title.length >= 55 && title.length <= 95) score += 8;
-      if(title.length < 42) score -= 4;
-      if(title.length > 100) score -= 12;
-      if(/[!?]/.test(title)) score += 2;
-      if(title.split(/\s+/).length >= 7) score += 3;
-
-      // Penalize generic/editorial filler and titles that merely echo the opening sentence.
-      if(/^(today|in this video|here's|this video|latest update|important development)\b/i.test(title)) score -= 10;
-      if(title === getTitle(text)) score -= 15;
-      if(title.toLowerCase() === source.slice(0, title.length).toLowerCase()) score -= 12;
-
-      // Segment relevance.
-      if(segment === 'motorindia' && /automotive|commercial vehicle|truck|bus|mobility|fleet|aftermarket|logistics|auto/i.test(title)) score += 4;
-      if(segment === 'textile' && /textile|textiles|spinning|weaving|yarn|fibre|fiber|machinery|apparel|garment/i.test(title)) score += 4;
-
-      return score;
-    }
-
-    function buildYouTubeTitle(text, segment, keywords){
-      const sentences = getSentences(text);
-      const key = keywords.slice(0,8);
-      const primary = key[0] || (segment === 'motorindia' ? 'Automotive Industry' : 'Textile Industry');
-      const secondary = key.find(k => k.toLowerCase() !== primary.toLowerCase()) || '';
-
-      // Pull the most information-rich sentences from the entire article, not just sentence #1.
-      const rankedSentences = sentences.map((sentence, index) => {
-        let score = 0;
-        const lower = sentence.toLowerCase();
-        key.forEach((k, i) => { if(lower.includes(k.toLowerCase())) score += Math.max(8 - i, 2); });
-        if(/\b\d+(?:\.\d+)?\s*(?:%|percent|million|billion|crore|lakh|units?|years?)\b/i.test(sentence)) score += 7;
-        if(/\b(?:launch|launched|unveil|unveiled|investment|invests?|growth|sales|revenue|orders?|partnership|acquisition|technology|electric|export|manufacturing|capacity|production|strategy|demand|market|policy|initiative|innovation)\b/i.test(sentence)) score += 6;
-        score += Math.min(sentence.length / 120, 3);
-        score -= index * 0.15;
-        return {sentence, score};
-      }).sort((a,b) => b.score - a.score);
-
-      const evidence = rankedSentences.slice(0,4).map(x => x.sentence).join(' ');
-      const snippets = [];
-      const clean = x => x.replace(/^[-–—•\s]+/, '').replace(/[.!?]+$/,'').trim();
-
-      // Candidate titles deliberately use the article's strongest story angle + searchable language.
-      if(primary) snippets.push(`${primary}: ${clean(evidence)}`);
-      if(secondary) snippets.push(`${primary} ${secondary}: What the Latest Development Means for the Industry`);
-      snippets.push(`${primary}: Key Industry Development, Market Impact and What Comes Next`);
-      snippets.push(`What ${primary} Means for the ${segment === 'motorindia' ? 'Automotive' : 'Textile'} Industry`);
-      if(secondary) snippets.push(`${primary} and ${secondary}: The Industry Shift to Watch`);
-
-      // Turn sentence-based candidates into concise titles.
-      const candidates = snippets.map(title => {
-        title = title.replace(/\s+/g,' ').trim();
-        if(title.length > 96) title = title.slice(0,93).replace(/\s+\S*$/,'') + '...';
-        return title;
-      });
-
-      return candidates.sort((a,b) => scoreTitleCandidate(b, text, segment, keywords) - scoreTitleCandidate(a, text, segment, keywords))[0];
-    }
-
-    function createYouTube(text, segment, tags){
-      const s = getSentences(text);
-      const keywords = extractKeywords(text, segment);
-      const ytTitle = buildYouTubeTitle(text, segment, keywords);
-      const sector = segment === 'motorindia'
-        ? 'automotive, commercial vehicle and mobility industry'
-        : 'textile, textile machinery and manufacturing industry';
-
-      const ranked = s.map((sentence, index) => {
-        let score = 0;
-        keywords.slice(0,10).forEach((k,i) => { if(sentence.toLowerCase().includes(k.toLowerCase())) score += Math.max(7-i,2); });
-        if(/\b\d+(?:\.\d+)?\s*(?:%|percent|million|billion|crore|lakh|units?|years?)\b/i.test(sentence)) score += 5;
-        if(/\b(?:launch|investment|growth|sales|revenue|orders?|partnership|technology|electric|export|manufacturing|capacity|production|strategy|demand|market|policy|innovation)\b/i.test(sentence)) score += 5;
-        score -= index * .1;
-        return {sentence, score};
-      }).sort((a,b)=>b.score-a.score).slice(0,7).map(x=>x.sentence.trim());
-
-      const description =
-`${ytTitle}
-
-This video examines ${ytTitle.replace(/^[^:]+:\s*/,'').replace(/\.\.\.$/,'')} and what it means for the ${sector}.
-
-We analyse the full story, including the key companies, products, technologies, market developments, numbers and industry implications highlighted in the source material.
-
-Key topics covered:
-${ranked.slice(0,5).map(x => `• ${x.replace(/[.!?]+$/,'')}`).join('\n')}
-
-Follow Gopali & Co for industry news, interviews, technology updates, business developments and market insights.
-
-Keywords: ${keywords.join(', ')}
-
-${tags.join(' ')}`;
-
-      return `TITLE\n${ytTitle}\n\nDESCRIPTION\n${description}`;
-    }
-
     function generateContent(){
-      const status = document.getElementById('status');
-      const segment = document.getElementById('segment').value;
-      const raw = document.getElementById('article').value.trim();
-
-      if(!raw){
-        status.textContent = 'Please paste an article first.';
-        return;
-      }
-
-      const text = normalize(raw);
-      const keywords = extractKeywords(text, segment);
-      const tags = buildHashtags(text, segment);
-
-      setOutput('linkedin', createLinkedIn(text, segment, tags));
-      setOutput('facebook', createFacebook(text, segment, tags));
-      setOutput('x', createX(text, segment, tags));
-      setOutput('youtube', createYouTube(text, segment, tags));
-      setOutput('keywords', keywords.join(', '));
-      setOutput('hashtags', tags.join(' '));
-
-      status.textContent = 'Generated from the full article: YouTube title is selected from multiple SEO/story-angle candidates, not simply the first line.';
+      const status=document.getElementById('status');
+      const segment=document.getElementById('segment').value;
+      const raw=document.getElementById('article').value.trim();
+      if(!raw){ status.textContent='Please paste the complete article or video transcript first.'; return; }
+      const text=normalize(raw);
+      const keywords=extractKeywords(text,segment);
+      const tags=buildHashtags(text,segment);
+      setOutput('linkedin',createLinkedIn(text,segment,tags));
+      setOutput('facebook',createFacebook(text,segment,tags));
+      setOutput('x',createX(text,segment,tags));
+      setOutput('youtubeDescription',createYouTubeDescription(text,segment,keywords,tags));
+      setOutput('keywords',keywords.join(', '));
+      setOutput('hashtags',tags.join(' '));
+      status.textContent='Professional social copy generated from the complete source material.';
     }
 
     async function copyText(id){
@@ -905,24 +867,22 @@ ${tags.join(' ')}`;
     }
 
     function clearAll(){
-      document.getElementById('article').value = '';
-
-      const placeholders = {
+      document.getElementById('article').value='';
+      const placeholders={
         linkedin:'Your LinkedIn post will appear here.',
         facebook:'Your Facebook post will appear here.',
         x:'Your X post will appear here.',
-        youtube:'Your YouTube title and description will appear here.',
+        youtubeDescription:'Your YouTube description will appear here.',
         keywords:'Keywords will appear here.',
         hashtags:'Hashtags will appear here.'
       };
-
-      Object.entries(placeholders).forEach(([id,text]) => {
-        const el = document.getElementById(id);
-        el.textContent = text;
+      Object.entries(placeholders).forEach(([id,text])=>{
+        const el=document.getElementById(id);
+        if(!el) return;
+        el.textContent=text;
         el.classList.add('placeholder');
       });
-
-      document.getElementById('status').textContent = '';
+      document.getElementById('status').textContent='';
     }
 
     updateSegmentPreview();
